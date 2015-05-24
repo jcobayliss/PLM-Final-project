@@ -1,0 +1,95 @@
+Practical Machine Learning
+========================================================
+
+This document describes the analysis.
+
+## Data loading  
+
+We import the requiered packages.
+
+```{r}
+library(caret)
+library(randomForest)
+library(e1071)
+```
+
+Because the data is already divided into training and test sets, all we do is loading the proper files.
+
+```{r}
+trainingSet <- read.csv(file = 'trainingSet.csv', header = TRUE)
+testSet <- read.csv(file = 'testSet.csv', header = TRUE)
+```
+
+## Preprocessing
+
+Unused columns are removed from the data. In this case we considered that the first seven columns are not relevant for the prediction process and for this reason, they were removed from the data.
+
+```{r}
+trainingSet <- trainingSet[, -c(1:7)]
+testSet <- testSet[, -c(1:7)]
+```
+
+Because some columns were loaded as factors, we make sure that everything is treated as a number (except for the last column, that corresponds to the expected output).
+
+```{r message = FALSE}
+for(i in 1:(ncol(trainingSet) - 1)) {
+  trainingSet[, i] <- as.numeric(as.character(trainingSet[, i]))
+}
+for(i in 1:(ncol(testSet) - 1)) {
+  testSet[, i] <- as.numeric(as.character(testSet[, i]))
+}
+```
+
+The data contains many NA's. We preprocess the data by removing the columns that contain at least one NA.
+
+```{r}
+trainingSet <- trainingSet[, colSums(is.na(trainingSet)) == 0]
+testSet <- testSet[, colSums(is.na(testSet)) == 0]
+```
+
+At this moment we have a training set with `r dim(trainingSet)[1]` examples, each example containing `r dim(trainingSet)[2] - 1` features mapped to an expected output.
+
+## Training of the prediction model
+
+We trained a simple prediction model by using a random forest with 100 trees and all the available features (`r dim(trainingSet)[2] - 1`) to predict the class of training (*classe*).
+
+```{r}
+randomForestModel <- randomForest(classe ~ ., data = trainingSet, ntree = 100, importance = TRUE)
+```
+
+We provide a fast comparison between the prediction and the real output on the training set.
+
+```{r}
+prediction <- predict(randomForestModel, newdata = trainingSet)
+qplot(classe, prediction, data = trainingSet)
+```
+
+Finally, we provide a more detailed view of the quality of the prediction by looking at the confussion matrix.
+
+```{r}
+confusionMatrix(prediction, trainingSet$classe)
+```
+
+## Conclusions
+
+We have observed that it is possible to predict the type of exercise by using only the following features:
+
+```{r}
+names(trainingSet[, -(dim(trainingSet[2]))])
+```
+
+As part of the project, we are required to submit the prediction of the 20 instances in the training set. This is conducted by using the code provided by the instructors in the site of the course. 
+
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("Test results/problem_id_",i,".txt")
+    write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, col.names = FALSE)
+  }
+}
+answers <- predict(randomForestModel, newdata = testSet)
+answers
+
+pml_write_files(answers)
+```
